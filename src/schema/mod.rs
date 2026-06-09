@@ -16,12 +16,12 @@ pub use transformations::{
     remove_image_metadata_fields, remove_internal_only_nodes, remove_invisible_paints,
     remove_layout_aids, remove_overridden_symbol_id, remove_phase_fields, remove_plugin_data,
     remove_rectangle_corner_radii_independent, remove_redundant_corner_radii,
-    remove_redundant_padding, remove_root_blobs, remove_root_metadata,
-    remove_scroll_resize_properties, remove_stack_align_items, remove_stack_child_properties,
+    remove_redundant_padding, remove_redundant_properties, remove_root_blobs, remove_root_metadata,
+    remove_scroll_resize_properties, remove_size_fields, remove_stack_align_items, remove_stack_child_properties,
     remove_stack_sizing_properties, remove_stroke_properties, remove_style_ids,
     remove_symbol_id_fields, remove_text_glyphs,
     remove_text_layout_fields, remove_default_text_line_properties, remove_text_metadata_fields, remove_type,
-    remove_default_uniform_scale_factor, remove_user_facing_versions, remove_visible_only_objects, simplify_enums, simplify_text_properties,
-    transform_colors_to_css, transform_image_hashes, transform_matrix_to_css,
+    remove_default_uniform_scale_factor, remove_user_facing_versions, remove_vector_data, remove_visible_only_objects, rename_paints, rename_transform, simplify_enums, simplify_text_properties,
+    transform_colors_to_css, transform_guids_to_ids, transform_image_hashes, transform_matrix_to_css, transform_variables, align_node_types, align_fields,
 };
 pub use tree::build_tree;
