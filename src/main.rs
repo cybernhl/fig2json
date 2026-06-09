@@ -1,5 +1,6 @@
 use anyhow::{anyhow, bail, Context, Result};
 use clap::Parser;
+use serde::Serialize;
 use std::fs;
 use std::path::PathBuf;
 
@@ -7,11 +8,11 @@ use std::path::PathBuf;
 #[command(name = "fig2json")]
 #[command(version, about = "Convert Figma .fig files to JSON")]
 #[command(long_about = "Convert Figma .fig files to JSON\n\n\
-    JSON output is pretty-printed by default with indentation.\n\n\
+    By default, output is minified to match Figma REST API style.\n\n\
     For regular .fig files:\n  \
-    fig2json input.fig [-o output.json] [--compact] [-v]\n\n\
+    fig2json input.fig [-o output.json] [--pretty] [-v]\n\n\
     For ZIP files (extracts all and converts all .fig files inside):\n  \
-    fig2json input.zip extract-dir [--compact] [-v]")]
+    fig2json input.zip extract-dir [--pretty] [-v]")]
 struct Cli {
     /// Input .fig or .zip file path
     input: PathBuf,
@@ -23,9 +24,13 @@ struct Cli {
     #[arg(short, long)]
     output: Option<PathBuf>,
 
-    /// Compact JSON output (default is pretty-printed with indentation)
-    #[arg(long)]
+    /// Minify JSON output (now default behavior)
+    #[arg(long, default_value_t = true)]
     compact: bool,
+
+    /// Pretty-print JSON output with indentation
+    #[arg(short, long)]
+    pretty: bool,
 
     /// Verbose output for debugging
     #[arg(short, long)]
@@ -65,7 +70,7 @@ fn main() -> Result<()> {
         }
 
         // ZIP extraction mode
-        handle_zip_mode(&bytes, extract_dir, cli.compact, cli.verbose, cli.raw)?;
+        handle_zip_mode(&bytes, extract_dir, cli.pretty, cli.verbose, cli.raw)?;
     } else {
         // Regular .fig file mode
         if cli.verbose {
@@ -86,11 +91,16 @@ fn main() -> Result<()> {
             eprintln!("Conversion successful!");
         }
 
-        // Format output (pretty by default, compact if flag is set)
-        let output = if cli.compact {
-            serde_json::to_string(&json)?
+        // Format output: Minified by default (to match official), Pretty if --pretty is set
+        let output = if cli.pretty {
+            // Use 2-space indentation for a balance of readability and size
+            let formatter = serde_json::ser::PrettyFormatter::with_indent(b"  ");
+            let mut buf = Vec::new();
+            let mut ser = serde_json::Serializer::with_formatter(&mut buf, formatter);
+            json.serialize(&mut ser)?;
+            String::from_utf8(buf)?
         } else {
-            serde_json::to_string_pretty(&json)?
+            serde_json::to_string(&json)?
         };
 
         // Write output
@@ -118,10 +128,14 @@ fn main() -> Result<()> {
 
             let raw_json = fig2json::convert_raw(&bytes).context("Failed to convert .fig file to raw JSON")?;
 
-            let raw_output = if cli.compact {
-                serde_json::to_string(&raw_json)?
+            let raw_output = if cli.pretty {
+                let formatter = serde_json::ser::PrettyFormatter::with_indent(b"  ");
+                let mut buf = Vec::new();
+                let mut ser = serde_json::Serializer::with_formatter(&mut buf, formatter);
+                raw_json.serialize(&mut ser)?;
+                String::from_utf8(buf)?
             } else {
-                serde_json::to_string_pretty(&raw_json)?
+                serde_json::to_string(&raw_json)?
             };
 
             // Determine raw output path
@@ -155,7 +169,7 @@ fn main() -> Result<()> {
 }
 
 /// Handle ZIP extraction mode: extract all files and convert all .fig files found
-fn handle_zip_mode(zip_bytes: &[u8], extract_dir: &PathBuf, compact: bool, verbose: bool, raw: bool) -> Result<()> {
+fn handle_zip_mode(zip_bytes: &[u8], extract_dir: &PathBuf, pretty: bool, verbose: bool, raw: bool) -> Result<()> {
     if verbose {
         eprintln!("ZIP file detected - extracting to: {}", extract_dir.display());
     }
@@ -202,11 +216,15 @@ fn handle_zip_mode(zip_bytes: &[u8], extract_dir: &PathBuf, compact: bool, verbo
         let json = fig2json::convert(&fig_bytes, base_dir)
             .with_context(|| format!("Failed to convert: {}", fig_path.display()))?;
 
-        // Format output (pretty by default, compact if flag is set)
-        let output = if compact {
-            serde_json::to_string(&json)?
+        // Format output: Minified by default (to match official), Pretty if --pretty is set
+        let output = if pretty {
+            let formatter = serde_json::ser::PrettyFormatter::with_indent(b"  ");
+            let mut buf = Vec::new();
+            let mut ser = serde_json::Serializer::with_formatter(&mut buf, formatter);
+            json.serialize(&mut ser)?;
+            String::from_utf8(buf)?
         } else {
-            serde_json::to_string_pretty(&json)?
+            serde_json::to_string(&json)?
         };
 
         // Determine output path: same as .fig but with .json extension
@@ -225,10 +243,14 @@ fn handle_zip_mode(zip_bytes: &[u8], extract_dir: &PathBuf, compact: bool, verbo
             let raw_json = fig2json::convert_raw(&fig_bytes)
                 .with_context(|| format!("Failed to convert to raw JSON: {}", fig_path.display()))?;
 
-            let raw_output = if compact {
-                serde_json::to_string(&raw_json)?
+            let raw_output = if pretty {
+                let formatter = serde_json::ser::PrettyFormatter::with_indent(b"  ");
+                let mut buf = Vec::new();
+                let mut ser = serde_json::Serializer::with_formatter(&mut buf, formatter);
+                raw_json.serialize(&mut ser)?;
+                String::from_utf8(buf)?
             } else {
-                serde_json::to_string_pretty(&raw_json)?
+                serde_json::to_string(&raw_json)?
             };
 
             // Determine raw output path: same as .fig but with .raw.json extension
